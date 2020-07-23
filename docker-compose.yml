@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+  apisix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./.docker/apisix/apisix_log:/usr/local/apisix/logs
+      - ./.docker/apisix/apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./.docker/apisix/apisix/discovery:/usr/local/apisix/apisix/discovery
+    depends_on:
+      - etcd
+    ports:
+      - '9080:9080/tcp'
+    networks:
+      apisix:
+        ipv4_address: 172.18.5.66
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.3.12
+    command: /usr/local/bin/etcd --advertise-client-urls http://0.0.0.0:2379 --listen-client-urls http://0.0.0.0:2379
+    volumes:
+      - ./.docker/apisix/etcd_data:/etcd_data
+    environment:
+      ETCD_DATA_DIR: /etcd_data
+    ports:
+      - '2379:2379/tcp'
+    networks:
+      apisix:
+        ipv4_address: 172.18.5.10
+
+  consul:
+    image: consul:1.8
+    ports:
+    - '8500:8500'
+    networks:
+      apisix:
+        ipv4_address: 172.18.5.20
+
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+    networks:
+      apisix:
+        ipv4_address: 172.18.5.30
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - '5672:5672'
+    logging:
+      driver: none
+    environment:
+      RABBITMQ_ERLANG_COOKIE: SWQOKODSQALRPCLNMEQG
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: rabbit
+    volumes:
+      - ./.docker/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugin
+
+networks:
+  apisix:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.18.0.0/16
